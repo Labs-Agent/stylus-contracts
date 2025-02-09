@@ -33,9 +33,6 @@ sol_storage! {
 
 #[public]
 impl UserStats {
-    pub fn constructor(&mut self) -> Result<(), Vec<u8>> {
-        Ok(())
-    }
 
     pub fn update_stats(&mut self, stats_json: String) -> Result<bool, Vec<u8>> {
         let user = msg::sender();
@@ -84,7 +81,7 @@ impl UserStats {
         Ok(true)
     }
 
-    pub fn get_recent_stats(&self, user: Address) -> Result<Vec<(String, U256)>, Vec<u8>> {
+    pub fn get_recent_stats(&self, user: Address) -> Vec<String> {
         let current_time = U256::from(block::timestamp());
         let two_minutes_ago = current_time.saturating_sub(U256::from(120)); // 2 minutes in seconds
 
@@ -95,15 +92,12 @@ impl UserStats {
         for i in 0..user_stats.len() {
             if let Some(entry) = user_stats.get(i) {
                 if entry.timestamp.get() >= two_minutes_ago {
-                    recent_stats.push((
-                        entry.stats_json.get_string(),
-                        entry.timestamp.get(),
-                    ));
+                    recent_stats.push(entry.stats_json.get_string());
                 }
             }
         }
 
-        Ok(recent_stats)
+        recent_stats
     }
 }
 
@@ -131,11 +125,11 @@ mod tests {
         contract.update_stats(stat2.clone()).unwrap();
 
         // Test getting recent stats
-        let recent_stats = contract.get_recent_stats(user).unwrap();
+        let recent_stats = contract.get_recent_stats(user);
         assert!(!recent_stats.is_empty());
         assert_eq!(recent_stats.len(), 2);
-        assert_eq!(recent_stats[0].0, stat1);
-        assert_eq!(recent_stats[1].0, stat2);
+        assert_eq!(recent_stats[0], stat1);
+        assert_eq!(recent_stats[1], stat2);
     }
 
     #[test]
@@ -150,11 +144,11 @@ mod tests {
         }
 
         // Check that only 50 entries are kept
-        let stats = contract.get_recent_stats(user).unwrap();
+        let stats = contract.get_recent_stats(user);
         assert_eq!(stats.len(), 50);
         
         // Verify the oldest entry was removed
-        let first_stat = &stats[49].0;
+        let first_stat = &stats[49];
         assert_eq!(first_stat, "{\"test\":1}");
     }
 }
